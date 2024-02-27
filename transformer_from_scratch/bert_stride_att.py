@@ -17,23 +17,39 @@ class SelfAttention(nn.Module):
         self.queries = nn.Linear(embed_size, embed_size)
         self.fc_out = nn.Linear(embed_size, embed_size)
 
-    def forward(self, values, keys, query, mask, token_index):
+    def forward(self, values, keys, query, mask, token_index, stride_tokens_index):
         # Get number of training examples
         N = query.shape[0]
 
         value_len, key_len, query_len = values.shape[1], keys.shape[1], query.shape[1]
 
+
         values = self.values(values)  # (N, value_len, embed_size)
         keys = self.keys(keys)  # (N, key_len, embed_size)
         queries = self.queries(query)  # (N, query_len, embed_size)
 
-        # Select only the embeddings corresponding to the specified token
-        queries = queries[:, token_index:token_index+1, :]
+        # Split the embedding into self.heads different pieces
+        values = values.reshape(N, value_len, self.heads, self.head_dim)
+        keys = keys.reshape(N, key_len, self.heads, self.head_dim)
+        queries = queries.reshape(N, query_len, self.heads, self.head_dim) 
 
+        # Select only the query corresponding to the specified token
+        queries = queries[[token_index]]  #4x5x1
+        print(queries.shape[0])
+        print(queries)
+        # Select only the keys corrisponding to the specified token
+        keys = keys[stride_tokens_index]  #4x5x2
+        print(keys.shape[0])
+        # Select only the values corrisponding to the specified token
+        values = values[stride_tokens_index] #4x5x2
+        print(values)
+        print(values.shape[0])
         # Calculate q*keys for each training example
-        energy = torch.einsum("nqhd,nkhd->nhqk", [queries, keys])
-        # energy: (N, heads, 1, key_len)
-
+        energy = torch.einsum("nqhd,nkhd->nhqk", [queries, keys])  #?usare metdo che permette di fare prodotto tra un vettore e una matrice 
+        # energy: (N, heads, 1, key_len)                               #abbrogiate
+        print(energy)
+        print(energy.shape[0])
+        #print(energy)
         # Mask padded indices so their weights become 0
         if mask is not None:
             energy = energy.masked_fill(mask == 0, float("-1e20"))
@@ -45,8 +61,10 @@ class SelfAttention(nn.Module):
         # attention: (N, heads, 1, key_len)
 
         # Calculate the weighted sum of values using attention
-        weighted_values = torch.einsum("nhqk,nkhd->nqhd", [attention, values])
+        weighted_values = torch.einsum("nhql,nlhd->nqhd", [attention, values])
         # weighted_values: (N, heads, 1, head_dim)
+        
+
 
         # Merge heads
         weighted_values = weighted_values.reshape(N, 1, self.heads * self.head_dim)
@@ -58,21 +76,29 @@ class SelfAttention(nn.Module):
 
         return out.squeeze(dim=1)  # Remove the extra dimension
 
+
+##########   TEST   ################
+    
+    
 # Test the modified SelfAttention class
-embed_size = 64
-heads = 4
-seq_len = 10
+embed_size = 4
+heads = 1
+#seq_len = 10
 model = SelfAttention(embed_size, heads)
 
 # Generate some dummy input tensors
-values = torch.randn(2, seq_len, embed_size)
-keys = torch.randn(2, seq_len, embed_size)
-query = torch.randn(2, seq_len, embed_size)
-mask = torch.ones(2, seq_len)  # Dummy mask
+values = torch.randn(5, 5, embed_size)
+keys = torch.randn(5, 5, embed_size)
+query = torch.randn(5, 5, embed_size)
+mask = torch.ones(5, 5)  # Dummy mask
+
+
+#print(values)
 
 # Define the index of the token of interest
-token_index = 7  # Assuming this is the index of the token "giocare"
+token_index = 3  # Assuming this is the index of the token "giocare"
 
+stride_tokens_index=[0,2]
 # Calculate the relative attention for the specified token
-relative_attention = model(values, keys, query, mask, token_index)
+relative_attention = model(values, keys, query, mask, token_index, stride_tokens_index)
 print(relative_attention)

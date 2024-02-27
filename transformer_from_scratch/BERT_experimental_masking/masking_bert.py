@@ -1,12 +1,14 @@
 from transformers import BertTokenizer, BertForMaskedLM
 import torch
+import numpy as np
 
 # Carica il tokenizer di BERT e il modello preaddestrato
 tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 model = BertForMaskedLM.from_pretrained('bert-base-uncased')
 
 # Esempio di testo con un token mascherato
-text = "The capital of France is [MASK]."
+#text = "The capital of France is [MASK]."
+text = 'Life is [MASK] journay [MASK] a [MASK]'
 
 # Tokenizza il testo e converte in tensori
 tokens = tokenizer(text, return_tensors='pt')
@@ -24,8 +26,13 @@ print('masked_index is : {}'.format(masked_index))
 print('++++++++++++++++++')
 
 
-attention_mask[:, masked_index] = 0  # Imposta a 0 l'attenzione per il token mascherato
+attention_mask = np.where(tokens['input_ids'] == tokenizer.mask_token_id, 0, attention_mask)
 
+#attention_mask_updated = attention_mask[:, masked_index] = 0  # Imposta a 0 l'attenzione per il token mascherato
+
+print(attention_mask)
+
+'''
 # Esegui l'output del modello
 outputs = model(input_ids=tokens['input_ids'], attention_mask=attention_mask)
 
@@ -43,3 +50,4 @@ predicted_tokens = [tokenizer.decode([predicted_token_id.item()]) for predicted_
 
 print("Parola prevista:", predicted_tokens)
 
+'''
