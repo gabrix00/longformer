@@ -10,8 +10,12 @@ on my youtube channel!
 import numpy as np
 import spacy
 
+import torch.nn.functional as F
+
 import torch
 import torch.nn as nn
+import matplotlib.pyplot as plt
+
 
 from transformers import BertTokenizer
 
@@ -80,7 +84,7 @@ class SelfAttention(nn.Module):
 
         return out
     
-def from_parser2masking(sentence:str,):
+def from_parser2masking(sentence:str):
     # Carica il modello linguistico
     nlp = spacy.load("en_core_web_sm")
 
@@ -101,19 +105,94 @@ def from_parser2masking(sentence:str,):
                     matrix[i][j] = 1
             else:
                 matrix[i][i]
+    
+    mask = torch.tensor(matrix)
+    return mask
 
-    return torch.tensor(matrix)
+
+    #return np.vstack([np.vstack([np.ones(l),np.torch.tensor(matrix)]),np.ones(l)]) #aggiungo una dimensione alla fine e uno all'inzio per il token cls e sep
+                
+
+def from_parser2masking_temp(sentence:str):
+    # Carica il modello linguistico
+    nlp = spacy.load("en_core_web_sm")
+
+    sentence = nlp(sentence)
+    #DA FIXARE PROBLMA TOKENIZER BERT CON TOKENIZER SPACY (FORSE CAMBIARE SPACY CON ALTRO MODELLO DI PARSING)
+    # Tokenizza il testo e converte in tensori
+    num_tokens = len(sentence)
+    mask = np.full((num_tokens, num_tokens), 0) 
 
 
+    for i, token in enumerate(sentence):
+        for j, other_token in enumerate(sentence):
+            if i != j:
+                # Controlla se l'altro token è un figlio del token corrente
+                if other_token in token.children:
+                    # Imposta a 1 la cella corrispondente all'altro token
+                    mask[i][j] = 1
+            else:
+                mask[i][i] = 1
+
+    #mask = np.vstack([np.ones(num_tokens),torch.tensor(mask)])
+    #mask = np.vstack([torch.tensor(mask),np.ones(num_tokens)])
+
+    return torch.tensor(mask)
+
+#print(from_parser2masking_temp("life is a journey, not a destination"))
+
+
+'''
+############## VISUALIZZAZIONE ATTENTION MASK ############
+import spacy
+nlp = spacy.load("en_core_web_sm")
+
+sentence = nlp("CLS life is a journey, not a destination SEP")
+num_tokens = len(sentence)
+print([el for  el in sentence])
+
+
+mask = np.full((num_tokens , num_tokens ), 0) 
+
+for i, token in enumerate(sentence):
+    for j, other_token in enumerate(sentence):
+        # Imposta l'attenzione a 0 se uno dei token è mascherato o se ci sono token duplicati
+        if i != j:
+            if other_token in token.children:
+                    # Imposta a 1 la cella corrispondente all'altro token
+                    mask[i][j] = 1
+        else:
+            mask[i][i] = 1
+
+
+plt.imshow(mask, cmap='Blues', interpolation='nearest')
+plt.title('Attention Mask')
+plt.xticks(range(len([el for  el in sentence])), [str(token) for token in sentence] , rotation=45)
+plt.yticks(range(len([el for  el in sentence])), [str(token) for token in sentence] , rotation=45)
+plt.colorbar()
+plt.show()
+#####################
+'''
+
+
+'''
+#####################################################
 # Definisci la frase di esempio
 #from_parser2masking("life is a journey, not a destination")
-
+nlp = spacy.load("en_core_web_sm")             
+sentence = nlp("life is a journey, not a destination")
+print(sentence)
+print(len(sentence))
+print(type(sentence))
+#--------------------------------------------------
 tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 tokens = tokenizer("life is a journey, not a destination", return_tensors='pt')
-#print(tokens["input_ids"].shape[1])
-#print(len(tokens))
-
-
+print(len(tokens["input_ids"][0]))
+print(type(tokens))
+#--------------------------------------------------
+'''
+'''
+tokens = tokenizer("life is a journey, not a destination", return_tensors='pt')
 for i, token in enumerate(np.nditer(tokens["input_ids"])):
     print(f"Indice: {i}, Token: {token}")
 
@@ -121,7 +200,7 @@ for i, token in enumerate(np.nditer(tokens["input_ids"])):
 mask= np.random.choice([0, 1], size=(tokens["input_ids"].shape[1], tokens["input_ids"].shape[1]))
 mask = torch.from_numpy(mask)
 print(mask)
-
+'''
 #mask = from_parser2masking("life is a journey, not a destination")
 
 
@@ -131,11 +210,11 @@ print(mask)
 ########
 
 heads = 1
-embedding_dim = 768
+embedding_dim = 10
 model = SelfAttention(embedding_dim, heads)
 
-
-
+#print(from_parser2masking_temp("CLS life is a journey, not a destination SEP"))
+mask = from_parser2masking_temp("CLS life is a journey, not a destination SEP")
 # Extract sequence length from the mask
 sequence_length = mask.shape[0] #indica il numero di token in una frase (10 in questo esempio)
 
@@ -146,7 +225,16 @@ keys = torch.randn(sequence_length, sequence_length, embedding_dim)   # (10,10, 
 relative_attention = model(values, keys, query, mask)
 
 
+print(relative_attention)
+
+# Applica la softmax lungo l'ultimo asse della tua matrice (axis=2)
+softmax_attenzione = F.softmax(relative_attention, dim=2)
+
+print(softmax_attenzione)
 print(len(relative_attention))
+
+
+
 
 
 
