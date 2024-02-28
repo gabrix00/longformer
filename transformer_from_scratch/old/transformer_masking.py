@@ -82,7 +82,7 @@ class SelfAttention(nn.Module):
         # Linear layer doesn't modify the shape, final shape will be
         # (N, query_len, embed_size)
 
-        return out
+        return out,attention
     
 def from_parser2masking(sentence:str):
     # Carica il modello linguistico
@@ -210,11 +210,11 @@ print(mask)
 ########
 
 heads = 1
-embedding_dim = 10
+embedding_dim = 20
 model = SelfAttention(embedding_dim, heads)
 
 #print(from_parser2masking_temp("CLS life is a journey, not a destination SEP"))
-mask = from_parser2masking_temp("CLS life is a journey, not a destination SEP")
+mask = from_parser2masking_temp("CLS life is a journey SEP")
 # Extract sequence length from the mask
 sequence_length = mask.shape[0] #indica il numero di token in una frase (10 in questo esempio)
 
@@ -225,18 +225,39 @@ keys = torch.randn(sequence_length, sequence_length, embedding_dim)   # (10,10, 
 relative_attention = model(values, keys, query, mask)
 
 
-print(relative_attention)
 
-# Applica la softmax lungo l'ultimo asse della tua matrice (axis=2)
-softmax_attenzione = F.softmax(relative_attention, dim=2)
+print(relative_attention[0])
+print(relative_attention[0].shape)
+print(len(relative_attention[0]))
 
-print(softmax_attenzione)
-print(len(relative_attention))
+# final embedding
+print(relative_attention[1])
+print(relative_attention[1].shape)
+print(len(relative_attention[1]))
 
+'''
+# Numero totale di matrici d'attenzione
+num_matrices = relative_attention[1].shape[0]
 
+# Creazione della griglia per i subplot
+num_rows = 2
+num_cols = (num_matrices + 1) // num_rows
 
+# Creazione della figura e degli assi per i subplot
+fig, axes = plt.subplots(num_rows, num_cols, figsize=(12, 8))
 
+# Rappresentazione grafica delle matrici d'attenzione
+for i in range(num_matrices):
+    ax = axes[i // num_cols, i % num_cols]
+    ax.imshow(relative_attention[1][i, 0].detach().numpy(), cmap='Blues', vmin=0, vmax=1)
+    ax.set_title(f'Attention Matrix {i+1}')
+    ax.set_xlabel('To')
+    ax.set_ylabel('From')
+    ax.set_xticks(range(6))
+    ax.set_yticks(range(6))
 
+plt.tight_layout()
+plt.show()
 
-
+'''
 

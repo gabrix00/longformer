@@ -12,6 +12,7 @@ text = 'Life is [MASK] journay [MASK] a [MASK]'
 
 # Tokenizza il testo e converte in tensori
 tokens = tokenizer(text, return_tensors='pt')
+print(tokens)
 
 # Calcola la maschera di attenzione
 attention_mask = tokens['attention_mask']
@@ -28,14 +29,14 @@ print('++++++++++++++++++')
 
 attention_mask = np.where(tokens['input_ids'] == tokenizer.mask_token_id, 0, attention_mask)
 
-#attention_mask_updated = attention_mask[:, masked_index] = 0  # Imposta a 0 l'attenzione per il token mascherato
-
 print(attention_mask)
 
-'''
-# Esegui l'output del modello
-outputs = model(input_ids=tokens['input_ids'], attention_mask=attention_mask)
 
+# Esegui l'output del modello
+#outputs = model(input_ids=tokens['input_ids'], attention_mask=attention_mask)
+#print(outputs)
+
+'''
 # Recupera i logits per il token mascherato
 logits = outputs.logits
 
@@ -51,3 +52,16 @@ predicted_tokens = [tokenizer.decode([predicted_token_id.item()]) for predicted_
 print("Parola prevista:", predicted_tokens)
 
 '''
+
+# Calcola la maschera di attenzione
+attention_mask = tokens['attention_mask']
+
+
+# Trova gli indici dei token MASK
+masked_indices = torch.where(tokens['input_ids'] == tokenizer.mask_token_id)
+
+# Imposta a 0 la maschera di attenzione per gli indici dei token MASK
+attention_mask[masked_indices] = 0
+
+# Ora hai accesso alla matrice di attenzione aggiornata
+print(attention_mask)
